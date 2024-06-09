@@ -10,6 +10,8 @@ public class Timer : MonoBehaviour
     private float currentTime;
     private float speed;
 
+    public float Speed { set { speed = value; } }
+
     private void Start()
     {
         enabled = false;

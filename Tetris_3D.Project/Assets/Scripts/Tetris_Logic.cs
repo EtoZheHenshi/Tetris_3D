@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public class Tetris_Logic : MonoBehaviour
@@ -9,94 +11,355 @@ public class Tetris_Logic : MonoBehaviour
     private int height;
     private int width;
     private bool[,] gameField;
-    private int currentFigurePositionY;
-    private int currentFigurePositionX;
+    private bool[,] backupGameField;
+    private int currentCheckPositionY;
+    private int currentCheckPositionX;
+    public TMP_Text field;
+    private bool isMove;
 
     void Start()
     {
-        height = 15;
+        isMove = false;
+        height = 10;
         width = 8;
         gameField = new bool[height, width];
-        currentFigurePositionX = gameField.GetLength(1) / 2 - 2;
+        CreateNewFigure();
+        timer.Speed = 1f;
         timer.Activate();
     }
 
     void Update()
     {
-        Debug.Log(currentFigurePositionY);
+        if (!isMove)
+        {
+            if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                isMove = true;
+                FigureFalling(KeyCode.DownArrow);
+            }
+            if (Input.GetKeyUp(KeyCode.LeftArrow))
+            {
+                isMove = true;
+                if (currentCheckPositionX != 0)
+                    FigureFalling(KeyCode.LeftArrow);
+                else
+                    isMove = false;
+            }
+            if (Input.GetKeyUp(KeyCode.RightArrow))
+            {
+                isMove = true;
+                if ((currentCheckPositionX + currentFigure.Size.GetLength(1)) != gameField.GetLength(1))
+                    FigureFalling(KeyCode.RightArrow);
+                else
+                    isMove = false;
+            }
+            if (Input.GetKeyUp(KeyCode.UpArrow))
+            {
+                isMove = true;
+                RotateFigure();
+            }
+        }
     }
 
-    public void FigureFalling()
+    private void PrintInConsole()
     {
-        bool isStop = false;
-        bool[,] tempArray = gameField.Clone() as bool[,];
-        int figureHeight = currentFigure.Size.GetLength(0);
-        int figureWidth;
-        for (int i = currentFigurePositionY; i > currentFigurePositionY - currentFigure.Size.GetLength(0); i--)
+        field.text = "";
+        for (int i = 0; i < gameField.GetLength(0); i++)
         {
-            figureWidth = 0;
-            for (int j = currentFigurePositionX; j < currentFigurePositionX + currentFigure.Size.GetLength(1); j++)
+            for (int j = 0; j < gameField.GetLength(1); j++)
             {
-                if (i == gameField.GetLength(0))
+                if (gameField[i,j])
                 {
-                    i--;
-                    figureHeight--;
-                }
-                if (i == gameField.GetLength(0) + 1)
-                {
-                    i -= 2;
-                    figureHeight -= 2;
-                }
-                if (gameField[i, j] && !currentFigure.Size[figureHeight - 1, figureWidth])
-                {
-                    continue;
-                }
-                if ((gameField[i, j] && currentFigure.Size[figureHeight - 1, figureWidth]) || i == gameField.GetLength(0) + 2)
-                {
-                    gameField = tempArray;
-                    isStop = true;
-                    break;
+                    field.text += "Ä";
                 }
                 else
                 {
-                    gameField[i, j] = currentFigure.Size[figureHeight - 1, figureWidth++];
-                    if (!(i == 0))
-                    {
-                        gameField[i - 1, j] = false;
-                    }
+                    field.text += ("Î");
                 }
+            }
+            field.text += "\n";
+        }
+    }
+
+    public void FigureFallOnTick()
+    {
+        if (!isMove)
+        {
+            isMove = true;
+            FigureFalling(KeyCode.DownArrow);
+        }
+        else
+        {
+            timer.Activate();
+        }
+    }
+
+    private void FigureFalling(KeyCode key)
+    {
+        bool isStop = false;
+        backupGameField = gameField.Clone() as bool[,];
+        int figureIndexY = currentFigure.Size.GetLength(0) - 1;
+        int figureIndexX = 0;
+        int fieldIndexXForRightMove = 0;
+        for (int i = currentCheckPositionY; i > currentCheckPositionY - currentFigure.Size.GetLength(0); i--)
+        {
+            if (key == KeyCode.RightArrow)
+            {
+                figureIndexX = currentFigure.Size.GetLength(1) - 1;
+                fieldIndexXForRightMove = currentCheckPositionX + currentFigure.Size.GetLength(1);
+            }
+            else
+                figureIndexX = 0;
+            for (int j = currentCheckPositionX; j < currentCheckPositionX + currentFigure.Size.GetLength(1); j++)
+            {
+                if (!currentFigure.Size[figureIndexY, figureIndexX])
+                {
+                    if (key == KeyCode.RightArrow)
+                    {
+                        figureIndexX--;
+                        fieldIndexXForRightMove--;
+                    }
+                    else
+                        figureIndexX++;
+                    continue;
+                }
+                
+                switch (key)
+                {
+                    case KeyCode.DownArrow:
+                        isStop = MoveDown(i, j, figureIndexY, figureIndexX);
+                        break;
+                    case KeyCode.LeftArrow:
+                        isStop = MoveLeft(i, j, figureIndexY, figureIndexX);
+                        break;
+                    case KeyCode.RightArrow:
+                        isStop = MoveRight(i, fieldIndexXForRightMove, figureIndexY, figureIndexX);
+                        fieldIndexXForRightMove--;
+                        break;
+                    default:
+                        break;
+                }
+
+                if (isStop)
+                    break;
+                if (key == KeyCode.RightArrow)
+                    figureIndexX--;
+                else
+                    figureIndexX++;
             }
             if (isStop) 
                 break;
-            figureHeight--;
-            if (i == 0)
+            if (key == KeyCode.DownArrow)
             {
-                break;
+                if (i == 0)
+                    break;
+            }
+            figureIndexY--;
+        }
+
+        EndMove(isStop, key);
+        isMove = false;
+        PrintInConsole();
+    }
+
+    private bool MoveDown(int fieldIndexY, int fieldIndexX, int figureIndexY, int figureIndexX)
+    {
+        if (fieldIndexY == gameField.GetLength(0) || (gameField[fieldIndexY, fieldIndexX] && currentFigure.Size[figureIndexY, figureIndexX]))
+        {
+            gameField = backupGameField;
+            return true;
+        }
+        else
+        {
+            gameField[fieldIndexY, fieldIndexX] = true;
+            if (!(fieldIndexY == 0))
+            {
+                gameField[fieldIndexY - 1, fieldIndexX] = false;
             }
         }
-        if (isStop)
+        return false;
+    }
+
+    private bool MoveLeft(int fieldIndexY, int fieldIndexX, int figureIndexY, int figureIndexX)
+    {
+        if (fieldIndexY > 0)
+        {
+            if (gameField[fieldIndexY - 1, fieldIndexX - 1] && currentFigure.Size[figureIndexY, figureIndexX])
+            {
+                gameField = backupGameField;
+                return true;
+            }
+            else
+            {
+                gameField[fieldIndexY - 1, fieldIndexX - 1] = true;
+                gameField[fieldIndexY - 1, fieldIndexX] = false;
+            }
+        }
+        return false;
+    }
+
+    private bool MoveRight(int fieldIndexY, int fieldIndexX, int figureIndexY, int figureIndexX)
+    {
+        if (fieldIndexY > 0)
+        {
+            if (gameField[fieldIndexY - 1, fieldIndexX] && currentFigure.Size[figureIndexY, figureIndexX])
+            {
+                gameField = backupGameField;
+                return true;
+            }
+            else
+            {
+                gameField[fieldIndexY - 1, fieldIndexX] = true;
+                gameField[fieldIndexY - 1, fieldIndexX - 1] = false;
+            }
+        }
+        return false;
+    }
+
+    private void EndMove(bool isStop, KeyCode key)
+    {
+        if (isStop && key == KeyCode.DownArrow)
             StopFalling();
-        else
-            currentFigurePositionY++;
-        timer.Activate();
+        else if (key == KeyCode.DownArrow)
+        {
+            currentCheckPositionY++;
+            timer.Activate();
+        }
+        else if (!isStop && key == KeyCode.LeftArrow)
+            currentCheckPositionX--;
+        else if (!isStop && key == KeyCode.RightArrow)
+            currentCheckPositionX++;
     }
 
     private void StopFalling()
     {
-        LineDistractionCheck();
-        GameOverCheck();
-        currentFigurePositionY = 0;
-        currentFigurePositionX = gameField.GetLength(1) / 2 - 2;
-        currentFigure.CreateFigure();
+        LineDestructionCheck();
+        if (GameOverCheck())
+            GameOver();
+        CreateNewFigure();
         timer.Activate();
     }
 
-    private void LineDistractionCheck()
+    private void RotateFigure()
     {
+        backupGameField = gameField.Clone() as bool[,];
+        currentCheckPositionY--;
+        DeleteFigureInField();
+        currentFigure.Rotate();
+        bool isMistake = false;
+        for (int i = 0; i < currentFigure.Size.GetLength(0); i++)
+        {
+            int fieldIndexY = currentCheckPositionY - currentFigure.Size.GetLength(0) + i;
 
+            if (fieldIndexY >= 0)
+            {
+                for (int j = 0; j < currentFigure.Size.GetLength(1); j++)
+                {
+                    if (currentCheckPositionX + j >= gameField.GetLength(1) || 
+                        (currentFigure.Size[i, j] && gameField[fieldIndexY, currentCheckPositionX + j]))
+                    {
+                        isMistake = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isMistake)
+                break;
+        }
+
+        if (isMistake)
+        {
+            gameField = backupGameField;
+            currentFigure.CancelRotate();
+            timer.Activate();
+            isMove = false;
+        }
+        else
+        {
+            FigureFalling(KeyCode.DownArrow);
+        }
     }
 
-    private void GameOverCheck()
+    private void DeleteFigureInField()
     {
+        int figureIndexY = currentFigure.Size.GetLength(0) - 1;
+        int figureIndexX = 0;
+        for (int i = currentCheckPositionY; i > currentCheckPositionY - currentFigure.Size.GetLength(0); i--)
+        {
+            figureIndexX = 0;
+            for (int j = currentCheckPositionX; j < currentCheckPositionX + currentFigure.Size.GetLength(1); j++)
+            {
+                if (!currentFigure.Size[figureIndexY, figureIndexX])
+                {
+                    figureIndexX++;
+                    continue;
+                }
+                if (i >= 0)
+                    gameField[i, j] = false;
+                figureIndexX++;
+            }
+            figureIndexY--;
+        }
+    }
+
+    private void LineDestructionCheck()
+    {
+        bool isDetruction;
+        for (int i = 0; i < gameField.GetLength(0); i++)
+        {
+            isDetruction = true;
+            for (int j = 0; j < gameField.GetLength(1); j++)
+            {
+                if (!gameField[i, j])
+                {
+                    isDetruction = false;
+                    break;
+                }
+            }
+            if (isDetruction)
+            {
+                LineDestruction(i);
+            }
+        }
+    }
+
+    private void LineDestruction(int indexY)
+    {
+        for (int i = indexY; i >= 0; i--)
+        {
+            for (int j = 0; j < gameField.GetLength(1); j++)
+            {
+                if (i == 0)
+                    gameField[i, j] = false;
+                else
+                    gameField[i, j] = gameField[i - 1, j];
+            }
+        }
+    }
+
+    private bool GameOverCheck()
+    {
+        for (int i = 0; i < gameField.GetLength(1); i++)
+        {
+            if (gameField[0, i])
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void GameOver()
+    {
+        Time.timeScale = 0;
+        Debug.Log("GameOver");
+    }
+
+    private void CreateNewFigure()
+    {
+        currentFigure.CreateFigure();
+        currentCheckPositionY = 0;
+        currentCheckPositionX = gameField.GetLength(1) / 2 - currentFigure.Size.GetLength(1) / 2;
     }
 }
