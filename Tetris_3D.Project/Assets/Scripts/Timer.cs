@@ -7,15 +7,13 @@ public class Timer : MonoBehaviour
 {
     [SerializeField] private float maxTime;
     [SerializeField] private UnityEvent onTick;
+    [SerializeField] private float speed;
+    [SerializeField] private float speedUp;
     private float currentTime;
-    private float speed;
-
-    public float Speed { set { speed = value; } }
 
     private void Start()
     {
         enabled = false;
-        speed = 1f;
     }
 
     void Update()
@@ -32,5 +30,10 @@ public class Timer : MonoBehaviour
     {
         currentTime = maxTime;
         enabled = true;
+    }
+
+    public void UpSpeed()
+    {
+        this.speed += speedUp;
     }
 }

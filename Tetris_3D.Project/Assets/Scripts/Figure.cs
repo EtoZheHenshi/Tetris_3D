@@ -26,7 +26,7 @@ public class Figure : MonoBehaviour
 
     public void CreateFigure()
     {
-        switch (rand.Next(3))
+        switch (rand.Next(7))
         {
             case 0:
                 size = new bool[,] 
@@ -46,6 +46,34 @@ public class Figure : MonoBehaviour
                 {
                     { false, true, true },
                     { true, true, false }
+                };
+                break;
+            case 3:
+                size = new bool[,]
+                {
+                    { true, true, false },
+                    { false, true, true }
+                };
+                break;
+            case 4:
+                size = new bool[,]
+                {
+                    { false, false, true },
+                    { true, true, true }
+                };
+                break;
+            case 5:
+                size = new bool[,]
+                {
+                    { true, false, false },
+                    { true, true, true }
+                };
+                break;
+            case 6:
+                size = new bool[,]
+                {
+                    { false, true, false },
+                    { true, true, true }
                 };
                 break;
             default:

@@ -8,36 +8,41 @@ public class Tetris_Logic : MonoBehaviour
 {
     [SerializeField] private Timer timer;
     [SerializeField] private Figure currentFigure;
+    [SerializeField] private GameField cubesGameField;
+    [SerializeField] private UI userInterface;
+    [SerializeField] private int speedUpStep;
     private int height;
     private int width;
     private bool[,] gameField;
     private bool[,] backupGameField;
     private int currentCheckPositionY;
     private int currentCheckPositionX;
-    public TMP_Text field;
     private bool isMove;
+    public int Height { get { return height; } }
+    public int Width { get { return width; } }
+    public bool[,] GameField { get { return gameField; } }
 
     void Start()
     {
         isMove = false;
-        height = 10;
-        width = 8;
+        height = 14;
+        width = 10;
         gameField = new bool[height, width];
+        cubesGameField.SetField();
         CreateNewFigure();
-        timer.Speed = 1f;
         timer.Activate();
     }
 
     void Update()
     {
-        if (!isMove)
+        if (!isMove && Time.timeScale == 1f)
         {
             if (Input.GetKeyDown(KeyCode.DownArrow))
             {
                 isMove = true;
                 FigureFalling(KeyCode.DownArrow);
             }
-            if (Input.GetKeyUp(KeyCode.LeftArrow))
+            if (Input.GetKeyDown(KeyCode.LeftArrow))
             {
                 isMove = true;
                 if (currentCheckPositionX != 0)
@@ -45,7 +50,7 @@ public class Tetris_Logic : MonoBehaviour
                 else
                     isMove = false;
             }
-            if (Input.GetKeyUp(KeyCode.RightArrow))
+            if (Input.GetKeyDown(KeyCode.RightArrow))
             {
                 isMove = true;
                 if ((currentCheckPositionX + currentFigure.Size.GetLength(1)) != gameField.GetLength(1))
@@ -53,31 +58,11 @@ public class Tetris_Logic : MonoBehaviour
                 else
                     isMove = false;
             }
-            if (Input.GetKeyUp(KeyCode.UpArrow))
+            if (Input.GetKeyDown(KeyCode.UpArrow))
             {
                 isMove = true;
                 RotateFigure();
             }
-        }
-    }
-
-    private void PrintInConsole()
-    {
-        field.text = "";
-        for (int i = 0; i < gameField.GetLength(0); i++)
-        {
-            for (int j = 0; j < gameField.GetLength(1); j++)
-            {
-                if (gameField[i,j])
-                {
-                    field.text += "Ä";
-                }
-                else
-                {
-                    field.text += ("Î");
-                }
-            }
-            field.text += "\n";
         }
     }
 
@@ -159,7 +144,6 @@ public class Tetris_Logic : MonoBehaviour
 
         EndMove(isStop, key);
         isMove = false;
-        PrintInConsole();
     }
 
     private bool MoveDown(int fieldIndexY, int fieldIndexX, int figureIndexY, int figureIndexX)
@@ -218,6 +202,7 @@ public class Tetris_Logic : MonoBehaviour
 
     private void EndMove(bool isStop, KeyCode key)
     {
+        cubesGameField.ChangeSetActive();
         if (isStop && key == KeyCode.DownArrow)
             StopFalling();
         else if (key == KeyCode.DownArrow)
@@ -234,8 +219,9 @@ public class Tetris_Logic : MonoBehaviour
     private void StopFalling()
     {
         LineDestructionCheck();
+        cubesGameField.ChangeSetActive();
         if (GameOverCheck())
-            GameOver();
+            userInterface.GameOver();
         CreateNewFigure();
         timer.Activate();
     }
@@ -271,6 +257,7 @@ public class Tetris_Logic : MonoBehaviour
         if (isMistake)
         {
             gameField = backupGameField;
+            currentCheckPositionY++;
             currentFigure.CancelRotate();
             timer.Activate();
             isMove = false;
@@ -320,6 +307,11 @@ public class Tetris_Logic : MonoBehaviour
             if (isDetruction)
             {
                 LineDestruction(i);
+                userInterface.UpdateScore(100);
+                if (userInterface.Score % speedUpStep == 0)
+                {
+                    timer.UpSpeed();
+                }
             }
         }
     }
@@ -348,12 +340,6 @@ public class Tetris_Logic : MonoBehaviour
             }
         }
         return false;
-    }
-
-    private void GameOver()
-    {
-        Time.timeScale = 0;
-        Debug.Log("GameOver");
     }
 
     private void CreateNewFigure()
